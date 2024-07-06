@@ -25,12 +25,20 @@ class AMidProgrammerTestCharacter : public ACharacter
 
 #pragma region Components
 
+protected:
+
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = "true"))
 	USpringArmComponent* CameraBoom;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = "true"))
 	UCameraComponent* FollowCamera;
+
+#pragma endregion
+
+#pragma region Input
 	
+protected:
+
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
 	UInputMappingContext* DefaultMappingContext;
 
@@ -42,8 +50,21 @@ class AMidProgrammerTestCharacter : public ACharacter
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
 	UInputAction* LookAction;
+	
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
+	UInputAction* FireAction;
 
 #pragma endregion
+
+#pragma region Explosion
+
+protected:
+
+	UPROPERTY(EditDefaultsOnly, Category = "Explosion")
+	UParticleSystem* ExplosionEffect;
+
+#pragma endregion
+
 
 #pragma region HUD
 
@@ -68,7 +89,6 @@ protected:
 	
 	virtual void BeginPlay();
 
-
 #pragma endregion
 
 #pragma region Move&Look
@@ -89,6 +109,7 @@ public:
 	FORCEINLINE class UCameraComponent* GetFollowCamera() const { return FollowCamera; }
 
 #pragma endregion
+
 
 };
 

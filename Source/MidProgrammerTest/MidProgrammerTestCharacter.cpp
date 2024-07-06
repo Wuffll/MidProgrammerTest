@@ -10,6 +10,7 @@
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
 #include "InputActionValue.h"
+
 #include "Blueprint/UserWidget.h"
 
 DEFINE_LOG_CATEGORY(LogTemplateCharacter);
@@ -41,15 +42,17 @@ AMidProgrammerTestCharacter::AMidProgrammerTestCharacter()
 	FollowCamera->SetupAttachment(CameraBoom, USpringArmComponent::SocketName);
 	FollowCamera->bUsePawnControlRotation = false; 
 	
-	static ConstructorHelpers::FClassFinder<UUserWidget> HUDWidgetObject(TEXT("/Game/TestAssets/WBP_HUD"));
-	if (HUDWidgetObject.Succeeded())
-		HUDWidgetClass = HUDWidgetObject.Class;
 
 }
 
 void AMidProgrammerTestCharacter::BeginPlay()
 {
 	Super::BeginPlay();
+
+	APlayerController* PC = GetController<APlayerController>();
+	if (PC)
+		UE_LOG(LogTemplateCharacter, Log, TEXT("PC is set!"));
+
 }
 
 void AMidProgrammerTestCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
@@ -75,12 +78,15 @@ void AMidProgrammerTestCharacter::SetupPlayerInputComponent(UInputComponent* Pla
 
 		// Looking
 		EnhancedInputComponent->BindAction(LookAction, ETriggerEvent::Triggered, this, &AMidProgrammerTestCharacter::Look);
+
 	}
 	else
 	{
 		UE_LOG(LogTemplateCharacter, Error, TEXT("'%s' Failed to find an Enhanced Input component! This template is built to use the Enhanced Input system. If you intend to use the legacy system, then you will need to update this C++ file."), *GetNameSafe(this));
 	}
 }
+
+#pragma region Move&Look
 
 void AMidProgrammerTestCharacter::Move(const FInputActionValue& Value)
 {
@@ -117,3 +123,5 @@ void AMidProgrammerTestCharacter::Look(const FInputActionValue& Value)
 		AddControllerPitchInput(LookAxisVector.Y);
 	}
 }
+
+#pragma endregion
