@@ -13,6 +13,10 @@
 
 #include "Blueprint/UserWidget.h"
 
+#include "Kismet/GameplayStatics.h"
+
+#include "HealthComponent.h"
+
 DEFINE_LOG_CATEGORY(LogTemplateCharacter);
 
 AMidProgrammerTestCharacter::AMidProgrammerTestCharacter()
@@ -41,8 +45,9 @@ AMidProgrammerTestCharacter::AMidProgrammerTestCharacter()
 	FollowCamera = CreateDefaultSubobject<UCameraComponent>(TEXT("FollowCamera"));
 	FollowCamera->SetupAttachment(CameraBoom, USpringArmComponent::SocketName);
 	FollowCamera->bUsePawnControlRotation = false; 
-	
 
+	HealthComponent = CreateDefaultSubobject<UHealthComponent>(TEXT("HealthComponent"));
+	HealthComponent->SetIsReplicated(true);
 }
 
 void AMidProgrammerTestCharacter::BeginPlay()
@@ -78,6 +83,9 @@ void AMidProgrammerTestCharacter::SetupPlayerInputComponent(UInputComponent* Pla
 
 		// Looking
 		EnhancedInputComponent->BindAction(LookAction, ETriggerEvent::Triggered, this, &AMidProgrammerTestCharacter::Look);
+
+		// LeftClick
+		EnhancedInputComponent->BindAction(FireAction, ETriggerEvent::Triggered, this, &AMidProgrammerTestCharacter::Fire);
 
 	}
 	else
@@ -122,6 +130,89 @@ void AMidProgrammerTestCharacter::Look(const FInputActionValue& Value)
 		AddControllerYawInput(LookAxisVector.X);
 		AddControllerPitchInput(LookAxisVector.Y);
 	}
+}
+
+#pragma endregion
+
+#pragma region Fire
+
+void AMidProgrammerTestCharacter::Fire(const FInputActionValue& Value)
+{
+	// Process on server
+	ProcessFire();
+}
+
+void AMidProgrammerTestCharacter::ProcessFire_Implementation()
+{
+	const FVector DirectionVector = FollowCamera->GetForwardVector();
+	const FVector CameraPosition = FollowCamera->GetComponentLocation();
+
+	FVector ExplosionPos = CameraPosition + ShotRange * DirectionVector;
+
+	FHitResult HitResult;
+	bool HitAnything = GetWorld()->LineTraceSingleByChannel(
+		HitResult,
+		CameraPosition,
+		ExplosionPos, {});
+
+	if (HitAnything)// && HitResult.GetActor()->GetOwner() != GetController())
+	{
+		ExplosionPos = HitResult.Location;
+	}
+
+	UGameplayStatics::ApplyRadialDamage(GetWorld(), ExplosionDamage, ExplosionPos, ExplosionRadius, nullptr, {});
+	SpawnExplosionEmitterMulticast(ExplosionPos);
+}
+
+void AMidProgrammerTestCharacter::SpawnExplosionEmitterMulticast_Implementation(FVector position)
+{
+	UGameplayStatics::SpawnEmitterAtLocation(GetWorld(), ExplosionEffect, position, FRotator(0.0, 0.0, 0.0));
+}
+
+#pragma endregion
+
+#pragma region Health
+
+float AMidProgrammerTestCharacter::TakeDamage(float DamageAmount, struct FDamageEvent const& DamageEvent, class AController* EventInstigator, AActor* DamageCauser)
+{
+	Super::TakeDamage(DamageAmount, DamageEvent, EventInstigator, DamageCauser);
+
+	float DamageApplied = 0.0f;
+
+	// Processing on server; replicated on clients
+	if (GetLocalRole() == ROLE_Authority)
+	{
+		const float HealthBeforeDamage = HealthComponent->GetCurrentHealth();
+
+		if (HealthBeforeDamage > 0.0f)
+		{
+			HealthComponent->SetCurrentHealth(HealthBeforeDamage - DamageAmount);
+
+			const float HealthAfterDamage = HealthComponent->GetCurrentHealth();
+			DamageApplied = HealthBeforeDamage - HealthAfterDamage;
+
+			UE_LOG(LogTemplateCharacter, Log, TEXT("Health: %f || Damage taken: %f \n"), HealthAfterDamage, DamageApplied);
+
+			if (HealthAfterDamage <= 0.0f)
+			{
+				Die();
+			}
+		}
+	}
+
+	return DamageApplied;
+}
+
+void AMidProgrammerTestCharacter::Die_Implementation()
+{
+	// Destroy(); // kills the character
+
+	if (APlayerController* PlayerController = Cast<APlayerController>(GetController()))
+	{
+		PlayerController->SetInputMode(FInputModeUIOnly());
+	}
+
+	UE_LOG(LogTemplateCharacter, Log, TEXT("Character has died! X("));
 }
 
 #pragma endregion

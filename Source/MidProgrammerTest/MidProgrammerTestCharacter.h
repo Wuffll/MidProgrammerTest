@@ -14,6 +14,8 @@ class UInputAction;
 class UUserWidget;
 struct FInputActionValue;
 
+class UHealthComponent;
+
 DECLARE_LOG_CATEGORY_EXTERN(LogTemplateCharacter, Log, All);
 
 UCLASS(config=Game)
@@ -63,6 +65,10 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "Explosion")
 	UParticleSystem* ExplosionEffect;
 
+	const float ExplosionDamage = 30.0f;
+	const float ExplosionRadius = 200.0f; // in cm
+	const float ShotRange = 2000.0f; // in cm
+
 #pragma endregion
 
 
@@ -72,6 +78,16 @@ protected:
 	
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "HUD")
 	TSubclassOf<UUserWidget> HUDWidgetClass;
+
+	UPROPERTY(BlueprintReadWrite, Category = "HUD")
+	TObjectPtr<UUserWidget> HUDWidget;
+
+#pragma endregion
+
+#pragma region Health
+
+	UPROPERTY(BlueprintReadOnly, Category = "Health")
+	TObjectPtr<UHealthComponent> HealthComponent;
 
 #pragma endregion
 
@@ -98,6 +114,33 @@ protected:
 	void Move(const FInputActionValue& Value);
 
 	void Look(const FInputActionValue& Value);
+
+#pragma endregion
+
+#pragma region Fire
+
+protected:
+
+	void Fire(const FInputActionValue& Value);
+
+	UFUNCTION(Server, Reliable)
+	void ProcessFire();
+
+	UFUNCTION(NetMulticast, Reliable)
+	void SpawnExplosionEmitterMulticast(FVector position);
+
+#pragma endregion
+
+#pragma region Health
+public:
+	
+	UFUNCTION(BlueprintCallable, Category = "Health")
+	float TakeDamage(float DamageAmount, struct FDamageEvent const& DamageEvent, class AController* EventInstigator, AActor* DamageCauser) override;
+
+protected:
+
+	UFUNCTION(Client, Reliable)
+	void Die();
 
 #pragma endregion
 
